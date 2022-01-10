@@ -7,7 +7,7 @@ def args_parser():
     parser = argparse.ArgumentParser()
 
     ## Training parameters
-    parser.add_argument('--server_epochs', type=int, default=2,
+    parser.add_argument('--server_epochs', type=int, default=200,
                         help="Number of Epochs")    
     parser.add_argument('--server_batch', type=int, default=100,
                         help="Batch Size")

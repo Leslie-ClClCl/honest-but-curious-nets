@@ -70,7 +70,7 @@ if __name__ == '__main__':
         test_data_loader = DataLoader(TensorDataset(torch.Tensor(test_images), torch.Tensor(test_labels).long()),
                                       batch_size=len(test_images) // 50, shuffle=False, drop_last=False)
         eval_acc_1, eval_acc_2, cf_mat_1, cf_mat_2 = utils.evaluate_acc_par(args, model, param_G, test_data_loader,
-                                                                            cf_mat=True, roc=False)
+                                                                            cf_mat=True, roc=True)
         print("\n$$$ Test Accuracy of the BEST model 1 {:.2f}".format(eval_acc_1))
         print("     Confusion Matrix 1:\n", (cf_mat_1 * 100).round(2))
         print("\n$$$ Test Accuracy of the BEST model 2 {:.2f}".format(eval_acc_2))
@@ -87,8 +87,7 @@ if __name__ == '__main__':
         save_dir = args.root_dir + "/results_reg/" + constants.DATASET + "/" + exp_name + "/"
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
-        model = trainers.train_model_reg(args, model,
-                                         train_dataset, save_dir)
+        model = trainers.train_model_reg(args, model, train_dataset, save_dir)
 
         ## Valid   
         best_REGTAU = 0.
@@ -106,7 +105,7 @@ if __name__ == '__main__':
         test_data_loader = DataLoader(TensorDataset(torch.Tensor(test_images), torch.Tensor(test_labels).long()),
                                       batch_size=len(test_images) // 50, shuffle=False, drop_last=False)
         eval_acc_1, eval_acc_2, cf_mat_1, cf_mat_2 = utils.evaluate_acc_reg(args, model, test_data_loader, cf_mat=True,
-                                                                            roc=False,
+                                                                            roc=True,
                                                                             beTau=best_REGTAU)
         print("\n$$$ Test Accuracy of the BEST model 1 {:.2f}".format(eval_acc_1))
         print("     Confusion Matrix 1:\n", (cf_mat_1 * 100).round(2))

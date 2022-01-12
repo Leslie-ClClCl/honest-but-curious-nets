@@ -7,179 +7,189 @@ from torchsummary import summary
 from sklearn.metrics import confusion_matrix
 import torchvision
 from . import constants
-from sklearn.metrics import roc_curve 
-from sklearn.metrics import auc 
+from sklearn.metrics import roc_curve
+from sklearn.metrics import auc
+from sklearn.metrics import roc_auc_score
+
+
 # import scikitplot as skplt
 
 def evaluate_acc_par(args, model, param_G, dataloader, cf_mat=False, roc=False, preds=False):
     model.eval()
     param_G.eval()
     valid_batch_acc_1, valid_batch_acc_2 = [], []
-    y_true_1 , y_pred_1, y_prob_1 = [], [], []
-    y_true_2 , y_pred_2, y_prob_2 = [], [], []
+    y_true_1, y_pred_1, y_prob_1 = [], [], []
+    y_true_2, y_pred_2, y_prob_2 = [], [], []
+    auc_scores_1 = []
     n_samples = 0
-    for batch_id, (images, labels) in enumerate(dataloader):                
+    for batch_id, (images, labels) in enumerate(dataloader):
         images, labels = images.to(args.device), labels.to(args.device)
-        output_valid_1 = model(images)                
-        output_valid_2 = param_G(output_valid_1) 
+        output_valid_1 = model(images)
+        output_valid_2 = param_G(output_valid_1)
+        auc_scores_1.append(roc_auc_score(labels[:, 0].cpu().detach(), output_valid_1.max(1)[1].cpu().detach()))
+        # auc_scores_2 = roc_auc_score(labels[:, 1], output_valid_2)
         predictions_1 = output_valid_1.max(1)[1]
         predictions_2 = output_valid_2.max(1)[1]
-        current_acc_1 = torch.sum((predictions_1 == labels[:,0]).float())
-        current_acc_2 = torch.sum((predictions_2 == labels[:,1]).float())
+        current_acc_1 = torch.sum((predictions_1 == labels[:, 0]).float())
+        current_acc_2 = torch.sum((predictions_2 == labels[:, 1]).float())
         valid_batch_acc_1.append(current_acc_1)
         valid_batch_acc_2.append(current_acc_2)
-        n_samples += len(labels)        
-        y_true_1 = y_true_1 + labels[:,0].tolist()
+        n_samples += len(labels)
+        y_true_1 = y_true_1 + labels[:, 0].tolist()
         y_pred_1 = y_pred_1 + predictions_1.tolist()
         if constants.SOFTMAX:
             y_prob_1 = y_prob_1 + ((output_valid_1).detach().cpu().numpy()).tolist()
         else:
-            y_prob_1 = y_prob_1 + (nn.Softmax(dim=1)(output_valid_1).detach().cpu().numpy()).tolist() 
-        y_true_2 = y_true_2 + labels[:,1].tolist()
+            y_prob_1 = y_prob_1 + (nn.Softmax(dim=1)(output_valid_1).detach().cpu().numpy()).tolist()
+        y_true_2 = y_true_2 + labels[:, 1].tolist()
         y_pred_2 = y_pred_2 + predictions_2.tolist()
         y_prob_2 = y_prob_2 + (nn.Softmax(dim=1)(output_valid_2).detach().cpu().numpy()).tolist()
-    acc_1 = (sum(valid_batch_acc_1)/n_samples)*100
-    acc_2 = (sum(valid_batch_acc_2)/n_samples)*100
-    
+    acc_1 = (sum(valid_batch_acc_1) / n_samples) * 100
+    acc_2 = (sum(valid_batch_acc_2) / n_samples) * 100
     if preds:
         return y_prob_1
     if roc:
-        plt.figure(figsize=(5, 5)) 
+        plt.figure(figsize=(5, 5))
         # skplt.metrics. 
-        plot_roc(y_true_1, y_prob_1,  
-                                    plot_micro = False,   plot_macro = False,                               
-                                    title=None, 
-                                    cmap='prism',  
-                                    figsize=(5, 5),
-                                    text_fontsize="large",
-                                    title_fontsize= "large", 
-                                    line_color = ['r', 'b'],
-                                    line_labels= ["y=0", "y=1"])
-        plt.show() 
-        plt.figure(figsize=(5, 5)) 
-        # skplt.metrics. 
-        plot_roc(y_true_2, y_prob_2,  
-                                    plot_micro = False,   plot_macro = False,                               
-                                    title=None, 
-                                    cmap='prism',  
-                                    figsize=(5, 5),
-                                    text_fontsize="large",
-                                    title_fontsize= "large", 
-                                    line_color = ['m', 'g'],
-                                    line_labels= ["s=0", "s=1"])
+        plot_roc(y_true_1, y_prob_1,
+                 plot_micro=False, plot_macro=False,
+                 title=None,
+                 cmap='prism',
+                 figsize=(5, 5),
+                 text_fontsize="large",
+                 title_fontsize="large",
+                 line_color=['r', 'b'],
+                 line_labels=["y=0", "y=1"])
         plt.show()
-    if cf_mat:      
-        cf_1 = confusion_matrix(y_true_1, y_pred_1, normalize='true')        
-        cf_2 = confusion_matrix(y_true_2, y_pred_2, normalize='true')        
+        plt.figure(figsize=(5, 5))
+        # skplt.metrics. 
+        plot_roc(y_true_2, y_prob_2,
+                 plot_micro=False, plot_macro=False,
+                 title=None,
+                 cmap='prism',
+                 figsize=(5, 5),
+                 text_fontsize="large",
+                 title_fontsize="large",
+                 line_color=['m', 'g', 'y'],
+                 line_labels=["s=0", "s=1", "s=2"])
+        plt.show()
+    if cf_mat:
+        cf_1 = confusion_matrix(y_true_1, y_pred_1, normalize='true')
+        cf_2 = confusion_matrix(y_true_2, y_pred_2, normalize='true')
         return acc_1, acc_2, cf_1, cf_2
     return acc_1, acc_2
+
 
 def evaluate_acc_reg(args, model, dataloader, cf_mat=False, roc=False, preds=False, beTau=constants.REGTAU):
-    model.eval()    
-    valid_batch_acc_1, valid_batch_acc_2 = [], []   
-    y_true_1 , y_pred_1, y_prob_1 = [], [], []
-    y_true_2 , y_pred_2, y_prob_2 = [], [], []
+    model.eval()
+    valid_batch_acc_1, valid_batch_acc_2 = [], []
+    y_true_1, y_pred_1, y_prob_1 = [], [], []
+    y_true_2, y_pred_2, y_prob_2 = [], [], []
     n_samples = 0
-    for batch_id, (images, labels) in enumerate(dataloader):                
+    for batch_id, (images, labels) in enumerate(dataloader):
         images, labels = images.to(args.device), labels.to(args.device)
-        output_valid_1 = model(images)                
+        output_valid_1 = model(images)
         predictions_1 = output_valid_1.max(1)[1]
-        
-        if constants.SOFTMAX:            
-            output_valid_2 = output_valid_1              
-        else:                                                             
-            output_valid_2  = nn.Softmax(dim=1)(output_valid_1)
-        output_valid_2 = output_valid_2 + 1e-16        
-        entropies = -(torch.sum(output_valid_2 * torch.log(output_valid_2),dim=1))
-        predictions_2 = torch.where(entropies >= beTau, torch.tensor(1.).to(args.device), torch.tensor(0.).to(args.device))                
 
-        current_acc_1 = torch.sum((predictions_1 == labels[:,0]).float())
-        current_acc_2 = torch.sum((predictions_2 == labels[:,1]).float())
+        if constants.SOFTMAX:
+            output_valid_2 = output_valid_1
+        else:
+            output_valid_2 = nn.Softmax(dim=1)(output_valid_1)
+        output_valid_2 = output_valid_2 + 1e-16
+        entropies = -(torch.sum(output_valid_2 * torch.log(output_valid_2), dim=1))
+        predictions_2 = torch.where(entropies >= beTau, torch.tensor(1.).to(args.device),
+                                    torch.tensor(0.).to(args.device))
+
+        current_acc_1 = torch.sum((predictions_1 == labels[:, 0]).float())
+        current_acc_2 = torch.sum((predictions_2 == labels[:, 1]).float())
         valid_batch_acc_1.append(current_acc_1)
         valid_batch_acc_2.append(current_acc_2)
-        n_samples += len(labels)    
-        y_true_1 = y_true_1 + labels[:,0].tolist()
+        n_samples += len(labels)
+        y_true_1 = y_true_1 + labels[:, 0].tolist()
         y_pred_1 = y_pred_1 + predictions_1.tolist()
         y_prob_1 = y_prob_1 + output_valid_2.detach().cpu().numpy().tolist()
-        y_true_2 = y_true_2 + labels[:,1].tolist()
+        y_true_2 = y_true_2 + labels[:, 1].tolist()
         y_pred_2 = y_pred_2 + predictions_2.tolist()
-        entropies = entropies.detach().cpu().numpy()  
-        y_prob_2 = y_prob_2 + np.concatenate((1-entropies[:,np.newaxis], entropies[:,np.newaxis]), axis=1).tolist()
-    acc_1 = (sum(valid_batch_acc_1)/n_samples)*100
-    acc_2 = (sum(valid_batch_acc_2)/n_samples)*100
-    y_true_2 = [int(x) for x in y_true_2]  
+        entropies = entropies.detach().cpu().numpy()
+        y_prob_2 = y_prob_2 + np.concatenate((1 - entropies[:, np.newaxis], entropies[:, np.newaxis]), axis=1).tolist()
+    acc_1 = (sum(valid_batch_acc_1) / n_samples) * 100
+    acc_2 = (sum(valid_batch_acc_2) / n_samples) * 100
+    y_true_2 = [int(x) for x in y_true_2]
     if roc:
-        plt.figure(figsize=(5, 5)) 
+        plt.figure(figsize=(5, 5))
         # skplt.metrics. 
-        plot_roc(y_true_1, y_prob_1,  
-                                    plot_micro = False,   plot_macro = False,                               
-                                    title=None, 
-                                    cmap='prism',  
-                                    figsize=(5, 5),
-                                    text_fontsize=14,
-                                    title_fontsize= "large", 
-                                    line_color = ['r', 'b'],
-                                    line_labels= ["male", "female"],
-                                    line_style = ["-","--"])
-        plt.show() 
-        plt.figure(figsize=(5, 5))  
-        # skplt.metrics. 
-        plot_roc(y_true_2, y_prob_2,  
-                                    plot_micro = False,   plot_macro = False,                               
-                                    title=None, 
-                                    cmap='prism',  
-                                    figsize=(5, 5),
-                                    text_fontsize=14,
-                                    title_fontsize= "large", 
-                                    line_color = ['m', 'g'],
-                                    line_labels= ["white", "non-white"],
-                                    line_style = ["-.",":"])  
+        plot_roc(y_true_1, y_prob_1,
+                 plot_micro=False, plot_macro=False,
+                 title=None,
+                 cmap='prism',
+                 figsize=(5, 5),
+                 text_fontsize=14,
+                 title_fontsize="large",
+                 line_color=['r', 'b', 'g'],
+                 line_labels=["label 0", "label 1", "label 2"],
+                 line_style=["-", "--", ":"])
         plt.show()
-    if cf_mat:      
-        cf_1 = confusion_matrix(y_true_1, y_pred_1, normalize='true')        
-        cf_2 = confusion_matrix(y_true_2, y_pred_2, normalize='true')        
+        plt.figure(figsize=(5, 5))
+        # skplt.metrics. 
+        plot_roc(y_true_2, y_prob_2,
+                 plot_micro=False, plot_macro=False,
+                 title=None,
+                 cmap='prism',
+                 figsize=(5, 5),
+                 text_fontsize=14,
+                 title_fontsize="large",
+                 line_color=['m', 'g', 'y'],
+                 line_labels=["male", "female"],
+                 line_style=["-.", ":"])
+        plt.show()
+    if cf_mat:
+        cf_1 = confusion_matrix(y_true_1, y_pred_1, normalize='true')
+        cf_2 = confusion_matrix(y_true_2, y_pred_2, normalize='true')
         return acc_1, acc_2, cf_1, cf_2
     return acc_1, acc_2
+
 
 def evaluate_acc_get_preds(args, model, param_G, dataloader):
     model.eval()
-    param_G.eval() 
+    param_G.eval()
     preds = []
     n_samples = 0
-    for batch_id, (images, labels) in enumerate(dataloader):                
+    for batch_id, (images, labels) in enumerate(dataloader):
         images, labels = images.to(args.device), labels.to(args.device)
         preds = preds + ((model(images)).detach().cpu().numpy()).tolist()
     return preds
 
-def log_sum_exp(x, axis = 1):
-    m = torch.max(x, dim = 1)[0]
-    return m + torch.log(torch.sum(torch.exp(x - m.unsqueeze(1)), dim = axis))
+
+def log_sum_exp(x, axis=1):
+    m = torch.max(x, dim=1)[0]
+    return m + torch.log(torch.sum(torch.exp(x - m.unsqueeze(1)), dim=axis))
 
 
-def print_dataset_info(dataset):    
-    print("Data Dimensions: ",dataset[0].shape)
+def print_dataset_info(dataset):
+    print("Data Dimensions: ", dataset[0].shape)
     labels = np.array(dataset[1]).astype(int)
-    _unique, _counts = np.unique(labels[:,0], return_counts=True)        
-    print("Honest:\n",np.asarray((_unique, _counts)).T)
-    _unique, _counts = np.unique(labels[:,1], return_counts=True)        
-    print("Curious:\n",np.asarray((_unique, _counts)).T)
+    _unique, _counts = np.unique(labels[:, 0], return_counts=True)
+    print("Honest:\n", np.asarray((_unique, _counts)).T)
+    _unique, _counts = np.unique(labels[:, 1], return_counts=True)
+    print("Curious:\n", np.asarray((_unique, _counts)).T)
 
 
 def imshow(imgs):
     img = torchvision.utils.make_grid(imgs)
-    plt.figure(figsize=((len(imgs)+1)*5,5))
+    width = int(np.sqrt(len(imgs))) + 1
+    plt.figure(figsize=(width, width))
     img = img / 2 + 0.5  # unnormalize
     npimg = img.detach().cpu().numpy()
     plt.imshow(np.transpose(npimg, (1, 2, 0)))
     plt.show()
-    
+
+
 ## Src: https://scikit-plot.readthedocs.io/en/stable/metrics.html#scikitplot.metrics.plot_roc   
 def plot_roc(y_true, y_probas, title='ROC Curves',
-                   plot_micro=True, plot_macro=True, classes_to_plot=None,
-                   ax=None, figsize=None, cmap='nipy_spectral',
-                   title_fontsize="large", text_fontsize="medium",
-                   line_color=None, line_labels=None, line_style=None):
-
+             plot_micro=True, plot_macro=True, classes_to_plot=None,
+             ax=None, figsize=None, cmap='nipy_spectral',
+             title_fontsize="large", text_fontsize="medium",
+             line_color=None, line_labels=None, line_style=None):
     y_true = np.array(y_true)
     y_probas = np.array(y_probas)
 
@@ -198,8 +208,14 @@ def plot_roc(y_true, y_probas, title='ROC Curves',
     tpr_dict = dict()
 
     indices_to_plot = np.in1d(classes, classes_to_plot)
-    
+
     color = line_color
+    if line_style is None:
+        line_style = [
+            ('solid', 'solid'),  # Same as (0, ()) or '-'
+            ('dotted', 'dotted'),  # Same as (0, (1, 1)) or '.'
+            ('dashed', 'dashed'),  # Same as '--'
+            ('dashdot', 'dashdot')]
     ls = line_style
     labels = line_labels
     for i, to_plot in enumerate(indices_to_plot):
@@ -208,11 +224,11 @@ def plot_roc(y_true, y_probas, title='ROC Curves',
         if to_plot:
             roc_auc = auc(fpr_dict[i], tpr_dict[i])
             # color = plt.cm.get_cmap(cmap)(float(i) / len(classes))
-            ax.plot(fpr_dict[i], tpr_dict[i] , lw=4, ls=ls[i], color=color[i],  
-                    label='{0} (area = {1:0.2f})' 
-                          ''.format(labels[i], roc_auc))  
+            ax.plot(fpr_dict[i], tpr_dict[i], lw=4, color=color[i],
+                    label='{0} (area = {1:0.2f})'
+                          ''.format(labels[i], roc_auc))
 
-    # if plot_micro:
+            # if plot_micro:
     #     binarized_y_true = label_binarize(y_true, classes=classes)
     #     if len(classes) == 2:
     #         binarized_y_true = np.hstack(
@@ -246,10 +262,10 @@ def plot_roc(y_true, y_probas, title='ROC Curves',
     ax.plot([0, 1], [0, 1], 'k--', lw=2)
     ax.set_xlim([0.0, 1.0])
     ax.set_ylim([0.0, 1.05])
-    ax.set_xlabel('False Positive Rate', fontsize=text_fontsize+2)
-    ax.set_ylabel('True Positive Rate', fontsize=text_fontsize+2)
-    ax.tick_params(labelsize=text_fontsize+1)
+    ax.set_xlabel('False Positive Rate', fontsize=text_fontsize)
+    ax.set_ylabel('True Positive Rate', fontsize=text_fontsize)
+    ax.tick_params(labelsize=text_fontsize)
     leg = ax.legend(loc='lower right', fontsize=text_fontsize)
     for legobj in leg.legendHandles:
-        legobj.set_linewidth(3.5)  
-    return ax 
+        legobj.set_linewidth(3.5)
+    return ax

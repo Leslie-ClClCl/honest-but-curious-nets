@@ -7,11 +7,11 @@ DATASET = "utk_face"    ### Total images are 23705
 TRAIN_SHARE = 18964     ### Then the Test_Share is (23705 - TRAIN_SHARE)
 VALID_SHARE = 1896      ### The portion used during training as validation set.
 AGE = 0    # DON'T Change this
-GENDER = 1 # DON'T Change this
+GENDER = 1  # DON'T Change this
 RACE = 2   # DON'T Change this
-HONEST = AGE  # This is the target attribut (i.e., y) in the paper. Use this to set your desired attribute.
-CURIOUS = GENDER # This is the sensitive attribut (i.e., s) in the paper. Use this to set your desired attribute.
-K_Y = 3  ##Set this based on the chosen attribute. For AGE and RACE from 2 to 5, for GENDER only 2.
+HONEST = GENDER  # This is the target attribut (i.e., y) in the paper. Use this to set your desired attribute.
+CURIOUS = RACE   # This is the sensitive attribut (i.e., s) in the paper. Use this to set your desired attribute.
+K_Y = 2  ##Set this based on the chosen attribute. For AGE and RACE from 2 to 5, for GENDER only 2.
 K_S = 2  ##Set this based on the chosen attribute. For AGE and RACE from 2 to 5, for GENDER only 2.
 
 # ################## When using Celeba dataset, please uncomment this part and comment out the UTK part above
@@ -21,9 +21,19 @@ K_S = 2  ##Set this based on the chosen attribute. For AGE and RACE from 2 to 5,
 # # 'Male': 20, 'Mouth_Slightly_Open': 21, 'Smiling': 31, 'Wavy_Hair': 33, 'Wearing_Lipstick': 36}
 # DATASET = "celeba"
 # HONEST = 0 # This is the target attribut (i.e., y) in the paper. Use this to set your desired attribute.
-# CURIOUS = 31  # This is the sensitive attribut (i.e., s) in the paper. Use this to set your desired attribute.
+# CURIOUS = 1  # This is the sensitive attribut (i.e., s) in the paper. Use this to set your desired attribute.
 # K_Y = 3  ##Set this based on the chosen attribute. For Hair_Color 3, for the rest 2.
 # K_S = 2  ##Set this based on the chosen attribute. For Hair_Color 3, for the rest 2.
+
+
+# # When using imdb wiki dataset, please uncomment this part
+# DATASET = "imdb_wiki"
+# AGE = 0
+# GENDER = 1
+# HONEST = AGE  # This is the target attribut (i.e., y) in the paper. Use this to set your desired attribute.
+# CURIOUS = GENDER   # This is the sensitive attribut (i.e., s) in the paper. Use this to set your desired attribute.
+# K_Y = 2  ##Set this based on the chosen attribute. For AGE and RACE from 2 to 5, for GENDER only 2.
+# K_S = 2  ##Set this based on the chosen attribute. For AGE and RACE from 2 to 5, for GENDER only 2.
 
 ##################
 BETA_X = 2. ## No specific range, but better to set something between 0. to 10.                 

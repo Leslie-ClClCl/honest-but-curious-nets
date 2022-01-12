@@ -8,10 +8,14 @@ from . import constants
 from torchvision.datasets import CelebA
 from torchvision import transforms
 
+from .data.imdb_wiki import IMDB_WIKI
+
 
 def get_dataset(args):
     """
-    Datasets    
+    获取数据集
+    现已支持： celeba、utk_face、imdb_wkik
+    第一次获取数据集时需要进行预处理，将读取数据、进行转换后保存到 npz 文件中供下次读取
     """
     if constants.DATASET == "celeba":
         save_dir = args.root_dir + "/data/temp/CelebA_npy_" + str(constants.IMAGE_SIZE) + "/"
@@ -101,28 +105,27 @@ def get_dataset(args):
             images, labels_dict = iter(data_loader).next()
             labels = np.zeros((len(images), 3)).astype(int)
 
-            ## Combining Labels
+            # 将标签转换成数组
             labels[:, 0] = labels_dict['age'].numpy()
             labels[:, 1] = labels_dict['gender'].numpy()
             labels[:, 2] = labels_dict['race'].numpy()
             images = images.numpy()
-            ## Shuffeling
+            # 进行顺序打乱
             indices = np.random.RandomState(seed=constants.RANDOM_SEED).permutation(len(images))
             images = images[indices]
             labels = labels[indices]
-            ## Saving
+            # 保存到 npz 文件中
             if not os.path.exists(save_dir):
                 os.makedirs(save_dir)
             train_images = images[:constants.TRAIN_SHARE]
             train_labels = labels[:constants.TRAIN_SHARE]
             test_images = images[constants.TRAIN_SHARE:]
             test_labels = labels[constants.TRAIN_SHARE:]
-            dataset_npz = np.savez_compressed(save_dir + str(constants.DATASET),
-                                              train_images=train_images, train_labels=train_labels,
-                                              test_images=test_images, test_labels=test_labels)
+            np.savez_compressed(save_dir + str(constants.DATASET),
+                                train_images=train_images, train_labels=train_labels,
+                                test_images=test_images, test_labels=test_labels)
             print("Completed!")
-
-        ## Loading        
+        # 从已经保存的数据中读取
         dataset_npz = np.load(save_dir + str(constants.DATASET) + ".npz")
         train_images = np.array(dataset_npz['train_images'])
         train_labels = np.array(dataset_npz['train_labels'])
@@ -133,10 +136,50 @@ def get_dataset(args):
         dataset_test = (test_images, test_labels)
 
         return dataset_train, dataset_test
+    elif constants.DATASET == "imdb_wiki":
+        save_dir = args.root_dir + "/data/temp/IMDB_WIKI_npy_" + str(constants.IMAGE_SIZE) + "/"
+        if constants.DATA_PREPROCESSING == 1:
+            dataset = IMDB_WIKI(constants.IMAGE_SIZE)
+            data_loader = DataLoader(dataset, batch_size=len(dataset), shuffle=False)
+            images, labels_dict = iter(data_loader).next()
+            labels = np.zeros((len(images), 2)).astype(int)
+
+            # 读取标签信息到数组中
+            labels[:, 0] = labels_dict['age'].numpy()
+            labels[:, 1] = labels_dict['gender'].numpy()
+            # 将数据顺序进行打乱
+            indices = np.random.RandomState(seed=constants.RANDOM_SEED).permutation(len(images))
+            images = images[indices]
+            labels = labels[indices]
+            # 将读取的数据保存到 npz 文件中
+            if not os.path.exists(save_dir):
+                os.makedirs(save_dir)
+            TRAIN_SHARE = len(images) * 0.9
+            train_images = images[:TRAIN_SHARE]
+            train_labels = labels[:TRAIN_SHARE]
+            test_images = images[TRAIN_SHARE:]
+            test_labels = labels[TRAIN_SHARE:]
+            np.savez_compressed(save_dir + str(constants.DATASET),
+                                train_images=train_images, train_labels=train_labels,
+                                test_images=test_images, test_labels=test_labels)
+            print("Completed!")
+            pass
+        # 从已经保存的数据中读取
+        dataset_npz = np.load(save_dir + str(constants.DATASET) + ".npz")
+        train_images = np.array(dataset_npz['train_images'])
+        train_labels = np.array(dataset_npz['train_labels'])
+        test_images = np.array(dataset_npz['test_images'])
+        test_labels = np.array(dataset_npz['test_labels'])
+        dataset_train = (train_images, train_labels)
+        dataset_test = (test_images, test_labels)
+        return dataset_train, dataset_test
 
 
 ##############################################
 def prepare_labels(train_labels, test_labels, valid_labels=None):
+    """
+    对数据的标签进行处理，筛选出需要的标签
+    """
     if constants.DATASET == "celeba":
         train_labels[:, 0] = np.where(train_labels[:, 8] == 1, 0, (np.where(train_labels[:, 9] == 1, 1, 2)))
         train_labels = train_labels[:, [constants.HONEST, constants.CURIOUS]]

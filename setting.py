@@ -7,7 +7,7 @@ def args_parser():
     parser = argparse.ArgumentParser()
 
     ## Training parameters
-    parser.add_argument('--server_epochs', type=int, default=200,
+    parser.add_argument('--server_epochs', type=int, default=100,
                         help="Number of Epochs")    
     parser.add_argument('--server_batch', type=int, default=100,
                         help="Batch Size")
@@ -15,7 +15,7 @@ def args_parser():
                         help="Learning Rate")                                                      
     
     ## Attack Type
-    parser.add_argument('--attack', type=str, default="parameterized",
+    parser.add_argument('--attack', type=str, default="regularized",
                         help="either 'parameterized' or 'regularized'")  
     ## Etc.
     parser.add_argument('--root_dir', type=str, default="hbcnets",

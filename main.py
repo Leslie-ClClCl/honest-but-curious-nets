@@ -15,6 +15,8 @@ from hbcnets import datasets, models, utils, trainers, constants
 # torch.backends.cudnn.deterministic = True
 # torch.backends.cudnn.benchmark = False
 # np.random.seed(constants.RANDOM_SEED)
+DEVICE = '0'  # 空闲显卡号
+os.environ["CUDA_VISIBLE_DEVICES"] = DEVICE
 
 
 if __name__ == '__main__':
